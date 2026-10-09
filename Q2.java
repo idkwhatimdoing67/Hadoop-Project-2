@@ -4,12 +4,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
-
-import javax.naming.Context;
-
-
-import javax.naming.Context;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -25,17 +19,16 @@ import org.apache.hadoop.util.GenericOptionsParser;
 public class Q2 {
 
     public static class JoinMapper extends Mapper<Object, Text, Text, DoubleWritable> {
-        private HashMap<String, String> capitals = new Hashmap<>();
+        private HashMap<String, String> capitals = new HashMap<>();
         private Text outKey = new Text();
         private DoubleWritable outValue = new DoubleWritable();
-
 
         @Override
         protected void setup(Context context) throws IOException {
             // Read state-capitals.csv and populate hashmap
 
             URI[] cacheFiles = context.getCacheFiles();
-            if(cacheFiles != null && cacheFiles().length > 0) {
+            if(cacheFiles != null && cacheFiles.length > 0) {
                 // Get file name from cached URI
                 String fileName = new File(cacheFiles[0].getPath()).getName();
                 BufferedReader reader = new BufferedReader(new FileReader(fileName));
@@ -59,14 +52,58 @@ public class Q2 {
         }
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+            String line = value.toString();
+
             // Skip header, validate temp, check if State and Citymatch a capital in hashmap
+
+            if (line.startsWith("Region") || line.trim().isEmpty()) {
+                return;
+            }
+
+            String[] parts = line.split(",");
+            if (parts.length >= 8) {
+                String state = parts[2];
+                String city = parts[3];
+                String tempStr = parts[7];
+                
+                // Check if state exists in cap map
+                if (capitals.containsKey(state)) {
+                    String capitalCity = capitals.get(state);
+
+                    // Match state and cap
+                    if (city.equals(capitalCity)) {
+                        try {
+                            double temp = Double.parseDouble(tempStr);
+                            if (temp != 9999.9) {
+                                outKey.set(state + "\t" + capitalCity);
+                                outValue.set(temp);
+                                context.write(outKey, outValue);
+                            }
+                        } catch (NumberFormatException e) {
+                        }
+                    }
+                }
+            }    
         }
-
     }
-
     public static class AvgReducer extends Reducer<Text, DoubleWritable, Text, Text> {
-        public void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterrupptedException {
+        private Text outValue = new Text();
+        public void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException {
             // Calculate 5-Year avg
+
+            double sum = 0.0;
+            int count = 0;
+
+            for (DoubleWritable val : values) {
+                sum += val.get();
+                count++;
+            }
+            
+            if (count > 0) {
+                double avg = sum / count;
+                outValue.set(String.format("%.2f", avg));
+                context.write(key, outValue);
+            }
         }
     }
 
