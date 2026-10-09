@@ -1,4 +1,7 @@
 import java.io.IOException;
+
+import javax.naming.Context;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -12,8 +15,41 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 public class Q1 {
     public static class TempMapper extends Mapper<Object, Text, Text, DoubleWritable> {
-        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+        private Text outKey = new Text();
+        private DoubleWritable outValue = new DoubleWritable();
+
+        public void map(Object key, org.w3c.dom.Text value, Context context) throws IOException, InterruptedException {
             // Skip header, split by comma, filter for Region and valid temp
+
+            String line = value.toString(); //read in the info
+
+            // Skip header
+            if (line.startsWith("Region") || line.trim().isEmpty()) {
+                return;
+            }
+
+            // Split by comma
+            String[] parts = line.split(",");
+            if (parts.length >= 8) {
+                String region = parts[0];
+                String state = parts[2];
+                String year = parts[6];
+                String tempStr = parts[7];
+
+                // Check region match
+                if (region.equals("West")) {
+                    try {
+                        double temp = Double.parseDouble(tempStr);
+                        
+                        if (temp != 9999.9) {
+                            outKey.set(state + "\t" + year);
+                            outValue.set(temp);
+                            context.write(outKey, outValue);
+                        }
+                    } catch (NumberFormatException e) {
+                    }
+                }
+            }
         }
     }
 
