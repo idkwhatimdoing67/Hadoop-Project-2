@@ -4,6 +4,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
+
+import javax.naming.Context;
+
+
+import javax.naming.Context;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -20,10 +26,36 @@ public class Q2 {
 
     public static class JoinMapper extends Mapper<Object, Text, Text, DoubleWritable> {
         private HashMap<String, String> capitals = new Hashmap<>();
+        private Text outKey = new Text();
+        private DoubleWritable outValue = new DoubleWritable();
+
 
         @Override
         protected void setup(Context context) throws IOException {
             // Read state-capitals.csv and populate hashmap
+
+            URI[] cacheFiles = context.getCacheFiles();
+            if(cacheFiles != null && cacheFiles().length > 0) {
+                // Get file name from cached URI
+                String fileName = new File(cacheFiles[0].getPath()).getName();
+                BufferedReader reader = new BufferedReader(new FileReader(fileName));
+
+                String line;
+                boolean header = true;
+                while ((line = reader.readLine()) != null) {
+                    if (header) { 
+                        header = false; 
+                        continue; 
+                    }
+                    String[] parts = line.split(",");
+                    if (parts.length >= 2) {
+                        capitals.put(parts[0], parts[1]);
+                    }
+                }
+                reader.close();
+            }
+
+            
         }
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
