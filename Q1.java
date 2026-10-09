@@ -1,7 +1,4 @@
 import java.io.IOException;
-
-import javax.naming.Context;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -18,7 +15,7 @@ public class Q1 {
         private Text outKey = new Text();
         private DoubleWritable outValue = new DoubleWritable();
 
-        public void map(Object key, org.w3c.dom.Text value, Context context) throws IOException, InterruptedException {
+        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
             // Skip header, split by comma, filter for Region and valid temp
 
             String line = value.toString(); //read in the info
@@ -54,8 +51,26 @@ public class Q1 {
     }
 
     public static class TempReducer extends Reducer<Text, DoubleWritable, Text, Text> {
+        private Text outValue = new Text();
+
         public void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException {
             // Sum valid readings, count, get avg, output
+
+            double sum = 0.0;
+            int count = 0;
+
+            // Sum
+            for (DoubleWritable val : values) {
+                sum += val.get();
+                count++;
+            }
+
+            //Avg
+            if (count > 0) {
+                double avg = sum/count;
+                outValue.set(String.format("%.2f", avg));
+                context.write(key, outValue);
+            }
         }
     }
 
